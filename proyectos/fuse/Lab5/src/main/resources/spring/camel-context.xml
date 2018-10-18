@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<beans xmlns="http://www.springframework.org/schema/beans"
+    xmlns:camel="http://camel.apache.org/schema/spring"
+    xmlns:cxf="http://camel.apache.org/schema/cxf"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://camel.apache.org/schema/cxf http://camel.apache.org/schema/cxf/camel-cxf.xsd        http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans.xsd        http://camel.apache.org/schema/spring http://camel.apache.org/schema/spring/camel-spring.xsd">
+    <cxf:cxfEndpoint address="/JBService" id="ws" serviceClass="org.redhat.contraloria.poc.ContraloriaPOC"/>
+    <camelContext id="camel" xmlns="http://camel.apache.org/schema/spring">
+        <route id="_route1">
+            <from id="_from1" uri="cxf:bean:ws"/>
+            <choice id="_choice1">
+                <when id="_when1">
+                    <simple>${body.anhoDeEmision}  &lt;= 2010</simple>
+                    <to id="_to1" uri="sql:select * from accounts where customerid = #?dataSource=dataSource&amp;outputClass=com.redhat.Lab5.Account"/>
+                    <bean beanType="org.redhat.contraloria.poc.SujetoDeControl"
+                        id="_bean1" method="setDataFromSQL(${body})"/>
+                </when>
+                <camel:otherwise>
+                    <to id="_to2" uri="sql:select * from accounts where accountid = #?dataSource=dataSource&amp;outputClass=com.redhat.Lab5.Account&amp;outputType=SelectOne"/>
+                    <bean beanType="org.redhat.contraloria.poc.SujetoDeControl"
+                        id="_bean2" method="setDataFromFile(${body})"/>
+                </camel:otherwise>
+            </choice>
+        </route>
+        <route id="_route2">
+            <from id="_from1" uri="cxf:bean:ws"/>
+            <to id="_to2" uri="sql:select * from accounts where accountid = #?dataSource=dataSource&amp;outputClass=com.redhat.Lab5.Account&amp;outputType=SelectOne"/>
+        </route>
+    </camelContext>
+</beans>
