@@ -11,7 +11,7 @@
     	http://camel.apache.org/schema/cxf/camel-cxf.xsd
     	">
    	
-    <cxf:cxfEndpoint address="http://localhost:8080/JBossBankServices"
+    <cxf:cxfEndpoint address="/JBossBankServices"
         id="routerEndpoint"
         serviceClass="org.redhat.pocFuse.JBossBankServices"
         wsdlURL="META-INF/wsdl/JBossBankServices.wsdl" xmlns:s="http://www.example.org/JBossBankServices/"/>
