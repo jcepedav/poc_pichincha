@@ -1,0 +1,111 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<blueprint xmlns="http://www.osgi.org/xmlns/blueprint/v1.0.0"
+    xmlns:camel="http://camel.apache.org/schema/blueprint"
+    xmlns:camelcxf="http://camel.apache.org/schema/blueprint/cxf"
+    xmlns:cm="http://aries.apache.org/blueprint/xmlns/blueprint-cm/v1.0.0"
+    xmlns:cxf="http://cxf.apache.org/blueprint/core"
+    xmlns:jaxws="http://cxf.apache.org/blueprint/jaxws"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.osgi.org/xmlns/blueprint/v1.0.0     https://www.osgi.org/xmlns/blueprint/v1.0.0/blueprint.xsd  http://cxf.apache.org/blueprint/jaxws  http://cxf.apache.org/schemas/blueprint/jaxws.xsd  http://cxf.apache.org/blueprint/core  http://cxf.apache.org/schemas/blueprint/core.xsd">
+    <bean class="io.netty.handler.codec.string.StringEncoder" id="string-encoder"/>
+    <bean class="io.netty.handler.codec.string.StringDecoder" id="string-decoder"/>
+    <bean class="co.com.rbm.base24.FormatReply800" id="response810"/>
+    <bean class="co.com.rbm.base24.ParceMsg200" id="request200"/>
+    <bean class="co.com.rbm.base24.ReplyMsg200" id="response200"/>
+    <bean class="co.com.rbm.base24.AddInitalLength" id="addInitLen"/>
+    <bean class="co.com.rbm.base24.ChannelProc" id="set-channel"/>
+    <bean class="co.com.rbm.base24.DataContainerBean" id="data"/>
+    <bean class="org.apache.commons.dbcp.BasicDataSource"
+        destroy-method="close" id="auditoria">
+        <property name="driverClassName" value="oracle.jdbc.OracleDriver"/>
+        <property name="url" value="jdbc:oracle:thin:@10.9.200.222:1521:DesaRbm"/>
+        <property name="username" value="ADMIN_AUDITORIA_ESB"/>
+        <property name="password" value="ADMIN_AUDITORIA_ESB2013*"/>
+    </bean>
+    <bean class="java.util.HashMap" id="mapNivel"/>
+    <bean class="java.util.HashMap" id="mapDescription"/>
+    <bean class="org.apache.activemq.camel.component.ActiveMQComponent" id="activemq">
+        <property name="userName" value="admin"/>
+        <property name="password" value="Redeban123*"/>
+        <property name="brokerURL" value="vm://amq?create=false&amp;waitForStart=5000"/>
+    </bean>
+    <bean
+        class="org.apache.camel.component.netty4.ChannelHandlerFactories"
+        factory-method="newLengthFieldBasedFrameDecoder" id="lfbfd">
+        <argument value="1048576"/>
+        <argument value="0"/>
+        <argument value="2"/>
+        <argument value="0"/>
+        <argument value="0"/>
+    </bean>
+    <camelcxf:cxfEndpoint address="/rbm/webservices/compra"
+        id="routerEndpoint"
+        serviceClass="co.com.rbm.esb.comercio.compra.CompraElectronicaMsgSetPortType"
+        wsdlURL="META-INF/wsdl/CompraElectronicaService.wsdl" xmlns:s="http://www.rbm.com.co/esb/comercio/compra/"/>
+    <camelContext id="Redeban_PoC" xmlns="http://camel.apache.org/schema/blueprint">
+        <route id="KeepAlive">
+            <from id="_base24_send" uri="netty4:tcp://10.9.200.108:2136?clientMode=true&amp;reuseChannel=true&amp;sync=false&amp;reconnect=true&amp;decoders=#lfbfd,#string-decoder&amp;encoders=#string-encoder"/>
+            <process id="_processChannel" ref="set-channel"/>
+            <bean id="_bean1"
+                method="setChannel(${header.CamelNettyChannelHandlerContext})" ref="data"/>
+            <convertBodyTo id="convert" type="java.lang.String"/>
+            <choice id="_choice1">
+                <when id="_when800">
+                    <simple>${body.substring(15,18)} == '800'</simple>
+                    <process id="_processReply" ref="response810"/>
+                    <to id="_tonetty" uri="netty4:tcp://10.9.200.108:2136?reuseChannel=true&amp;sync=false&amp;reconnect=true&amp;decoders=#string-decoder&amp;encoders=#string-encoder"/>
+                   
+                </when>
+                <when id="_when210">
+                    <simple>${body.substring(15,18)} == '210'</simple>
+                    
+                    <setHeader customId="true"
+                        headerName="idTransaccion" id="_setProperty1">
+                        <simple resultType="java.lang.Integer">${body.substring(137,149)}</simple>
+                    </setHeader>
+                    <to customId="true" id="dis" uri="activemq:queue:foo?deliveryPersistent=false"/>
+                </when>
+                <otherwise id="_otherwise1">
+                    <log id="_logNoCon" message="MSG unknown: code=${body.substring(15,18)}, BODY: ${body}"/>
+                </otherwise>
+            </choice>
+        </route>
+        <route id="SendMessage">
+            <from id="_wsdlEndPoint" uri="routerEndpoint"/>
+            <process id="_processRequest" ref="request200"/>
+            <setHeader headerName="CamelNettyChannelHandlerContext" id="_setHeader0">
+                <simple>${bean:data?method=getChannel}</simple>
+            </setHeader>
+            <process id="_processChannel_msg" ref="set-channel"/>
+         
+            <setProperty customId="true" id="_setProp" propertyName="idtransaccionheader">
+                <simple resultType="java.lang.Integer">${body.substring(120,132)}</simple>
+            </setProperty>
+           
+            <to customId="true" id="_tonetty_msg" uri="netty4:tcp://10.9.200.108:2136?reuseChannel=true&amp;decoders=#string-decoder&amp;encoders=#string-encoder&amp;sync=false"/>
+            <threads customId="true" id="_threads1" maxPoolSize="60"
+                poolSize="40" threadName="Threads">
+                <pollEnrich customId="true" id="_pollEnrich1" timeout="10000">
+                    <simple>activemq:queue:foo?selector=idTransaccion=${exchangeProperty.idtransaccionheader}</simple>
+                </pollEnrich>
+            </threads>
+            <setHeader headerName="RespCodigo" id="_setHeader2">
+                <simple>${body.substring(154,156)}</simple>
+            </setHeader>
+            <process id="_processResponse" ref="response200"/>
+        </route>
+        <!--     <route id="LoadMessages">
+            <from id="_to_timer" uri="timer:diario?period=43200000"/>
+            <setBody id="_setBody_query">
+                <constant>select MENSAJE.COD_MENSAJE, MENSAJE.NIVEL, MENSAJE.DESCRIPCION FROM MENSAJE WHERE MENSAJE.COD_SISTEMA = 'HISO'</constant>
+            </setBody>
+            <to id="_to_db" uri="jdbc:auditoria"/>
+            <split id="_split1">
+                <simple>${body}</simple>
+                <bean id="_beanNivel"
+                    method="put(${body[COD_MENSAJE]}, ${body[NIVEL]})" ref="mapNivel"/>
+                <bean id="_beanDescripcion"
+                    method="put(${body[COD_MENSAJE]}, ${body[DESCRIPCION]})" ref="mapDescription"/>
+            </split>
+        </route> -->
+    </camelContext>
+</blueprint>
