@@ -91,7 +91,7 @@
   </wsdl:binding>
   <wsdl:service name="JBossBankServices">
     <wsdl:port binding="tns:JBossBankServicesSOAP" name="JBossBankServicesSOAP">
-      <soap:address location="http://www.example.org/"/>
+      <soap:address location="http://www.example.org/JBossBankServices"/>
     </wsdl:port>
   </wsdl:service>
 </wsdl:definitions>

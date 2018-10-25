@@ -1,36 +1,37 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <beans xmlns="http://www.springframework.org/schema/beans"
-	
-	xmlns:cxf="http://camel.apache.org/schema/cxf"
-    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" 
-    xsi:schemaLocation="http://www.springframework.org/schema/beans 
-    	http://www.springframework.org/schema/beans/spring-beans.xsd
-    	http://camel.apache.org/schema/spring
-    	http://camel.apache.org/schema/spring/camel-spring.xsd
-    	http://camel.apache.org/schema/cxf
-    	http://camel.apache.org/schema/cxf/camel-cxf.xsd
-    	">
-   	
-    <cxf:cxfEndpoint address="/JBossBankServices"
-        id="routerEndpoint"
+    xmlns:cxf="http://camel.apache.org/schema/cxf"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.springframework.org/schema/beans       http://www.springframework.org/schema/beans/spring-beans.xsd      http://camel.apache.org/schema/spring      http://camel.apache.org/schema/spring/camel-spring.xsd      http://camel.apache.org/schema/cxf      http://camel.apache.org/schema/cxf/camel-cxf.xsd      ">
+    <cxf:cxfEndpoint address="JBossBankServices" id="routerEndpoint"
         serviceClass="org.redhat.pocFuse.JBossBankServices"
         wsdlURL="META-INF/wsdl/JBossBankServices.wsdl" xmlns:s="http://www.example.org/JBossBankServices/"/>
-	<bean id="activemq" class="org.apache.activemq.camel.component.ActiveMQComponent">
-	    <property name="connectionFactory">
-	      <bean class="org.apache.activemq.ActiveMQConnectionFactory">
-	        <property name="brokerURL" value="tcp://broker-amq-tcp.fuse-demo.svc:61616" />
-	        <property name="userName" value="admin" />
-	        <property name="password" value="Openshift1" />
-	      </bean>
-	    </property>
-  	</bean>
-      <camelContext id="camel" xmlns="http://camel.apache.org/schema/spring">
+    <bean class="org.apache.activemq.camel.component.ActiveMQComponent" id="activemq">
+        <property name="connectionFactory">
+            <bean class="org.apache.activemq.ActiveMQConnectionFactory">
+                <property name="brokerURL" value="tcp://broker-amq-tcp.fuse-demo.svc:61616"/>
+                <property name="userName" value="admin"/>
+                <property name="password" value="Openshift1"/>
+            </bean>
+        </property>
+    </bean>
+    <camelContext id="camel" xmlns="http://camel.apache.org/schema/spring">
         <route id="wsdl2AMQ">
             <from id="_wsdlEndPoint" uri="routerEndpoint"/>
-            <setBody id="route-setBody">
-                <simple>Hello World from camel-context.xml</simple>
-            </setBody>
-            <log id="route-log" message=">>> ${body}"/>
+            <log id="route-body" message="Body >>> ${body}"/>
+            <log id="route-headers" message="Headers >>> ${headers}"/>
+              <choice>
+	            <when>
+	                <simple>${headers[CamelCxfMessage]} contains 'getCustomerAccounts'</simple>
+	                <log id="account_log" message="Account"/>
+	            </when>
+	            <when>
+	                <simple>${headers[CamelCxfMessage]} contains 'getAccountBalance'</simple>
+	                <log id="Balance_log" message="Balance"/>
+	            </when>
+	            <otherwise>
+	                <log id="unknown_log" message="Error"/>
+	            </otherwise>
+	        </choice>
             <to customId="true" id="dis" uri="activemq:queue:BankRequest?deliveryPersistent=true"/>
         </route>
     </camelContext>
