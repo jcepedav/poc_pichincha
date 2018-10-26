@@ -4,8 +4,8 @@
   <modelVersion>4.0.0</modelVersion>
   <groupId>org.redhat</groupId>
   <version>1.0.0-SNAPSHOT</version>
-  <name>Red Hat:: POC :: Fuse AMQ</name>
-  <description>Spring Boot Route that store a message in AMQ from a WebService EndPoint (CXF)</description>
+  <name>Red Hat:: POC :: AMQ Fuse</name>
+  <description>Spring Boot Route that read a message from AMQ and write in LOG</description>
   <properties>
     <spring-boot.version>1.5.4.RELEASE</spring-boot.version>
     <fabric8.version>3.0.11.fuse-710023-redhat-00001</fabric8.version>
@@ -123,5 +123,5 @@
       </plugin>
     </plugins>
   </build>
-  <artifactId>pocFuse</artifactId>
+  <artifactId>pocAMQFuse</artifactId>
 </project>
