@@ -19,20 +19,36 @@
             <from id="_wsdlEndPoint" uri="routerEndpoint"/>
             <log id="route-body" message="Body >>> ${body}"/>
             <log id="route-headers" message="Headers >>> ${headers}"/>
-              <choice>
-	            <when>
-	                <simple>${headers[CamelCxfMessage]} contains 'getCustomerAccounts'</simple>
-	                <log id="account_log" message="Account"/>
-	            </when>
-	            <when>
-	                <simple>${headers[CamelCxfMessage]} contains 'getAccountBalance'</simple>
-	                <log id="Balance_log" message="Balance"/>
-	            </when>
-	            <otherwise>
-	                <log id="unknown_log" message="Error"/>
-	            </otherwise>
-	        </choice>
-            <to customId="true" id="dis" uri="activemq:queue:BankRequest?deliveryPersistent=true"/>
+            <setHeader headerName="salida">
+            	<simple>${body}
+            	</simple>
+            </setHeader>
+            <choice id="_choice1">
+                <when id="_when1">
+                    <simple>${headers[CamelCxfMessage]} contains 'getCustomerAccounts'</simple>
+                    <log id="account_log" message="Account"/>
+                    <setBody id="account">
+                        <simple>CustomerAccounts</simple>
+                    </setBody>
+                </when>
+                <when id="_when2">
+                    <simple>${headers[CamelCxfMessage]} contains 'getAccountBalance'</simple>
+                    <log id="Balance_log" message="Balance"/>
+                    <setBody id="balance">
+                        <simple>AccountBalance</simple>
+                    </setBody>
+                </when>
+                <otherwise id="_otherwise1">
+                    <log id="unknown_log" message="Error"/>
+                    <setBody id="error">
+                        <simple>Desconocido</simple>
+                    </setBody>
+                </otherwise>
+            </choice>
+            <to customId="true" id="dis" pattern="InOnly" uri="activemq:queue:BankRequest"/>
+                    <setBody id="error">
+                        <simple>${headers[salida]}</simple>
+                    </setBody>
         </route>
     </camelContext>
 </beans>
